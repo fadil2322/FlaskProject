@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block header %}Dashboard{% endblock %}
+
+{% block content %}
+
+<style>
+  /* Modern look */
+  .stats-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    height: 100%;
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .stats-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+  }
+
+  .chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #6c757d;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+  }
+</style>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stats-card shadow-sm border-0 text-center">
+      <div class="card-title">Total Perusahaan</div>
+      <div class="stat-value text-primary">{{ total_perusahaan }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stats-card shadow-sm border-0 text-center">
+      <div class="card-title">Total Sertifikat</div>
+      <div class="stat-value text-warning">{{ total_sertifikat }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stats-card shadow-sm border-0 text-center">
+      <div class="card-title">Sertifikat Active</div>
+      <div class="stat-value text-success">{{ total_active }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stats-card shadow-sm border-0 text-center">
+      <div class="card-title">Tren ISO</div>
+      <div class="fw-bold">{{ tren_teratas }}</div>
+      <button class="btn btn-sm btn-outline-primary mt-2" onclick="openTrend()">Ranking</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main Charts -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Jumlah Sertifikasi ISO</h6>
+        <div class="chart-container">
+          <canvas id="jenisChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Tren Sertifikasi</h6>
+        <div class="chart-container">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Charts -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Jenis ISO</h6>
+        <div class="chart-container">
+          <canvas id="donutChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Bidang Usaha</h6>
+        <div class="chart-container">
+          <canvas id="usahaChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Growth & Recommendations -->
+<div class="row g-3">
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Growth ISO Naik</h6>
+        {% for iso in trend_up %}
+        <div class="mb-3 p-3 border rounded">
+          <h6 class="mb-1">{{ iso.jenis_iso }}</h6>
+          <span class="text-success fw-bold">
+            <i class="bi bi-arrow-up"></i> +{{ iso.percent }}%
+          </span>
+        </div>
+        {% else %}
+        <p class="text-muted">Tidak ada data naik</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Growth ISO Turun</h6>
+        {% for iso in trend_down %}
+        <div class="mb-3 p-3 border rounded">
+          <h6 class="mb-1">{{ iso.jenis_iso }}</h6>
+          <span class="text-danger fw-bold">
+            <i class="bi bi-arrow-down"></i> -{{ iso.percent }}%
+          </span>
+        </div>
+        {% else %}
+        <p class="text-muted">Tidak ada data turun</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Rekomendasi Bidang Usaha</h6>
+        <p>{{ rekomendasi_bidang_usaha.top.bidang_usaha }}</p>
+        <p><b>Bidang Usaha Terkecil:</b> {{ rekomendasi_bidang_usaha.bottom.bidang_usaha }} ({{
+          rekomendasi_bidang_usaha.bottom.total }})</p>
+        <p>{{ rekomendasi_bidang_usaha.marketing }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="trendModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Detail Tren ISO</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Jenis ISO</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in tren_iso %}
+            <tr>
+              <td>{{ t['jenis_iso'] }}</td>
+              <td>{{ t['total'] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openTrend() {
+    $('#trendModal').modal('show');
+  }
+
+  const jenisLabels = {{ jenis_labels| safe }};
+  const jenisData = {{ jenis_data| safe }};
+  const trendLabels = {{ trend_labels| safe }};
+  const trendData = {{ trend_data| safe }};
+  const usahaLabels = {{ usaha_labels| safe }};
+  const usahaData = {{ usaha_data| safe }};
+
+  new Chart(document.getElementById('jenisChart'), {
+    type: 'bar',
+    data: {
+      labels: jenisLabels,
+      datasets: [{ label: 'Jumlah', data: jenisData, backgroundColor: '#0d6efd' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [{ label: 'Jumlah', data: trendData, borderColor: '#198754', backgroundColor: '#19875455' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: jenisLabels,
+      datasets: [{ data: jenisData, backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2', '#fd7e14', '#20c997', '#6f42c1', '#0dcaf0', '#adb5bd'] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  new Chart(document.getElementById('usahaChart'), {
+    type: 'bar',
+    data: {
+      labels: usahaLabels,
+      datasets: [{
+        label: 'Total',
+        data: usahaData,
+        backgroundColor: [
+          '#20c997', // hijau
+          '#0d6efd', // biru
+          '#ffc107', // kuning
+          '#dc3545', // merah
+          '#6f42c1', // ungu
+          '#fd7e14', // oranye
+          '#198754'  // hijau tua
+        ]
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } }
+    }
+  });
+
+</script>
+
+{% endblock %}

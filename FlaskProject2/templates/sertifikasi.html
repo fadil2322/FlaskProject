@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title %}Sertifikasi{% endblock %}
+{% block header %}Data Sertifikasi{% endblock %}
+{% block content %}
+
+<button class="btn btn-success mb-3" onclick="openAdd()">Tambah Sertifikasi</button>
+<div class="mb-3">
+  <form action="/sertifikasi/import_csv" method="post" enctype="multipart/form-data" style="display:inline;">
+    <input type="file" name="file" accept=".csv" required>
+    <button type="submit" class="btn btn-info btn-sm">Submit</button>
+  </form>
+  <br><br>
+  <a href="/sertifikasi/export_csv" class="btn btn-warning btn-sm">Export CSV</a>
+  <!-- <a href="/sertifikasi/export_excel" class="btn btn-success btn-sm">Export Excel</a> -->
+  <a href="/sertifikasi/export_sql" class="btn btn-primary btn-sm">Export SQL</a>
+</div>
+
+
+<table id="sertifikasiTable" class="table table-striped table-bordered">
+  <thead>
+    <tr>
+      <th>Nama Perusahaan</th>
+      <th>Jenis ISO</th>
+      <th>No Cert</th>
+      <th>Bidang Usaha</th>
+      <th>Status</th>
+      <th>Tgl Awal</th>
+      <th>Tgl Akhir</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in sertifikasi %}
+    <tr>
+      <td>{{ s[1] }}</td>
+      <td>{{ s[2] }}</td>
+      <td>{{ s[3] }}</td>
+      <td>{{ s[4] }}</td>
+      <td>
+        {% if s[5] == 'Active' %}
+        <span class="badge bg-success">Active</span>
+        {% else %}
+        <span class="badge bg-danger">Non-Active</span>
+        {% endif %}
+      </td>
+      <td>{{ s[6] }}</td>
+      <td>{{ s[7] }}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="openEdit({{ s[0] }})"><i class="bi bi-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSert({{ s[0] }})"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<!-- Offcanvas Modal Fade Right -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="sertifikasiForm">
+  <div class="offcanvas-header">
+    <h5 id="offcanvasLabel">Form Sertifikasi</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form id="formSertifikasi">
+      <input type="hidden" name="id_sert" id="id_sert">
+      <div class="mb-3">
+        <label>Nama Perusahaan</label>
+        <input type="text" name="nama_client" id="nama_client" class="form-control">
+      </div>
+      <div class="mb-3" id="isoContainer">
+        <label>Jenis ISO</label>
+        <div class="iso-row d-flex mb-2">
+          <select name="jenis_iso[]" class="form-control me-2">
+            <option value="">-- Pilih Jenis ISO --</option>
+            {% for iso in standards %}
+            <option value="{{ iso[0] }}">{{ iso[1] }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn btn-success btn-sm addIso"><i class="bi bi-plus"></i></button>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label>No Cert</label>
+        <input type="text" name="no_cert" id="no_cert" class="form-control">
+      </div>
+      <div class="mb-3" id="codesContainer">
+        <label>Codes EA & Bidang Usaha</label>
+        <div class="code-row d-flex mb-2">
+          <select name="mc_code[]" class="form-control mc_code me-2">
+            <option value="">-- Pilih Kode --</option>
+            {% for c in codes %}
+            <option value="{{ c[0] }}">{{ c[0] }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="bidang_usaha[]" class="form-control bidang_usaha me-2" readonly>
+          <button type="button" class="btn btn-success btn-sm addCode"><i class="bi bi-plus"></i></button>
+        </div>
+      </div>
+
+
+
+      <div class="mb-3">
+        <label>Tgl Awal</label>
+        <input type="date" name="tgl_awal" id="tgl_awal" class="form-control">
+      </div>
+      <div class="mb-3">
+        <label>Tgl Akhir</label>
+        <input type="date" name="tgl_akhir" id="tgl_akhir" class="form-control">
+      </div>
+      <button type="button" onclick="saveSertifikasi()" class="btn btn-success">Simpan</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+  $(document).ready(function () {
+    $('#sertifikasiTable').DataTable({
+      paging: true,           // Aktifkan pagination
+      pageLength: 5,         // Default 10 baris per halaman
+      lengthChange: true,     // User bisa pilih 10, 25, 50, 100
+      searching: true,        // Pencarian aktif
+      ordering: true,         // Urutkan kolom aktif
+      info: true,             // Teks info di bawah (Showing 1 to X of Y entries)
+      language: {
+        search: "_INPUT_",
+        searchPlaceholder: "Cari sertifikasi..."
+      }
+    });
+  });
+
+  function openAdd() {
+    $('#offcanvasLabel').text('Tambah Sertifikasi');
+    $('#formSertifikasi')[0].reset();
+    $('#id_sert').val('');
+    new bootstrap.Offcanvas($('#sertifikasiForm')).show();
+  }
+
+  function openEdit(id) {
+    $.get('/sertifikasi/get/' + id, function (data) {
+      $('#offcanvasLabel').text('Edit Sertifikasi');
+      $('#id_sert').val(data.id_sert);
+      $('#nama_client').val(data.nama_client);
+      $('#jenis_iso').val(data.jenis_iso);
+      $('#no_cert').val(data.no_cert);
+      $('#mc_code').val(data.mc_code).trigger('change'); // otomatis isi bidang_usaha
+      $('#bidang_usaha').val(data.bidang_usaha); // isi langsung
+      $('#tgl_awal').val(data.tgl_awal);
+      $('#tgl_akhir').val(data.tgl_akhir);
+      new bootstrap.Offcanvas($('#sertifikasiForm')).show();
+    });
+  }
+
+  function saveSertifikasi() {
+    let formData = {
+      id_sert: $('#id_sert').val(),
+      nama_client: $('#nama_client').val(),
+      jenis_iso: $("select[name='jenis_iso[]']").map(function () { return $(this).val(); }).get(),
+      no_cert: $('#no_cert').val(),
+      mc_code: $("select[name='mc_code[]']").map(function () { return $(this).val(); }).get(),
+      bidang_usaha: $("input[name='bidang_usaha[]']").map(function () { return $(this).val(); }).get(),
+      tgl_awal: $('#tgl_awal').val(),
+      tgl_akhir: $('#tgl_akhir').val(),
+    };
+    $.ajax({
+      url: '/sertifikasi/save',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(formData),
+      success: function () {
+        Swal.fire('Berhasil!', 'Data berhasil disimpan.', 'success').then(() => location.reload());
+      }
+    });
+  }
+
+
+
+  function deleteSert(id) {
+    Swal.fire({
+      title: 'Yakin menghapus?',
+      text: "Data akan dihapus permanen!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $.post('/sertifikasi/delete/' + id, {}, function (data) {
+          if (data.status === 'success') {
+            Swal.fire('Terhapus!', '', 'success').then(() => location.reload());
+          }
+        });
+      }
+    });
+  }
+</script>
+
+<script>
+  $('#mc_code').change(function () {
+    let mc_code = $(this).val();
+    if (mc_code) {
+      $.get('/sertifikasi/get_bidang_usaha/' + mc_code, function (data) {
+        if (data && data.length > 0) {
+          $('#bidang_usaha').val(data[0]); // langsung isi input readonly
+        } else {
+          $('#bidang_usaha').val('');
+        }
+      });
+    } else {
+      $('#bidang_usaha').val('');
+    }
+  });
+
+  function importData() {
+    let formData = new FormData($('#importForm')[0]);
+    $.ajax({
+      url: '/sertifikasi/import',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function (res) {
+        Swal.fire('Berhasil!', 'Data berhasil diimport.', 'success').then(() => location.reload());
+      },
+      error: function (err) {
+        Swal.fire('Error!', 'Gagal import data.', 'error');
+      }
+    });
+  }
+
+  $(document).ready(function () {
+
+    // === Jenis ISO ===
+    $('#isoContainer').on('click', '.addIso', function () {
+      let newRow = `
+      <div class="iso-row d-flex mb-2">
+        <select name="jenis_iso[]" class="form-control me-2">
+          <option value="">-- Pilih Jenis ISO --</option>
+          {% for iso in standards %}
+          <option value="{{ iso[0] }}">{{ iso[1] }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-danger btn-sm removeIso"><i class="bi bi-dash"></i></button>
+      </div>
+    `;
+      $('#isoContainer').append(newRow);
+    });
+
+    $('#isoContainer').on('click', '.removeIso', function () {
+      $(this).closest('.iso-row').remove();
+    });
+
+
+    // === Codes EA + Bidang Usaha ===
+    $('#codesContainer').on('click', '.addCode', function () {
+      let newRow = `
+      <div class="code-row d-flex mb-2">
+        <select name="mc_code[]" class="form-control mc_code me-2">
+          <option value="">-- Pilih Kode --</option>
+          {% for c in codes %}
+          <option value="{{ c[0] }}">{{ c[0] }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="bidang_usaha[]" class="form-control bidang_usaha me-2" readonly>
+        <button type="button" class="btn btn-danger btn-sm removeCode"><i class="bi bi-dash"></i></button>
+      </div>
+    `;
+      $('#codesContainer').append(newRow);
+    });
+
+    $('#codesContainer').on('click', '.removeCode', function () {
+      $(this).closest('.code-row').remove();
+    });
+
+    // otomatis isi bidang_usaha sesuai kode
+    $('#codesContainer').on('change', '.mc_code', function () {
+      let mc_code = $(this).val();
+      let bidangInput = $(this).closest('.code-row').find('.bidang_usaha');
+      if (mc_code) {
+        $.get('/sertifikasi/get_bidang_usaha/' + mc_code, function (data) {
+          if (data && data.length > 0) {
+            bidangInput.val(data[0]);
+          } else {
+            bidangInput.val('');
+          }
+        });
+      } else {
+        bidangInput.val('');
+      }
+    });
+
+  });
+
+
+</script>
+
+{% endblock %}
